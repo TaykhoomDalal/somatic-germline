@@ -38,7 +38,7 @@ Test data is provided in data folder.
 # Example
 #create all relevant columns and annotations
 
-python data_proprocessing.py --input_maf data/test_input.maf --annotated_maf data/test_annotated.maf
+python data_preprocessing.py --input_maf data/test_input.maf --annotated_maf data/test_annotated.maf
 
 #run classifier
 
