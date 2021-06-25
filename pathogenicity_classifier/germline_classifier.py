@@ -1,11 +1,12 @@
 import pandas as pd
 import numpy as np
 import os
+import sklearn
 from sklearn.ensemble import RandomForestClassifier
-from sklearn import preprocessing, cross_validation
+from sklearn import preprocessing
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import average_precision_score
-from sklearn.cross_validation import KFold, cross_val_score
+from sklearn.model_selection import KFold, cross_val_score
 import sys
 import argparse
 
@@ -23,7 +24,7 @@ def get_df_prob( predictions):
 
 def get_gene_level_annotations():
   #get annotations for germline genes as oncogenes / tumor suppressors or genes whose function is via gain vs. loss
-  gene_level_annotation = pd.read_table(gene_level_input_file, sep = '\t')
+  gene_level_annotation = pd.read_csv(gene_level_input_file, sep = '\t', low_memory = False)
   gene_annotation_columns = gene_level_annotation.columns.tolist()
   gene_annotation_columns = gene_annotation_columns.remove('Hugo_Symbol')
 
@@ -41,7 +42,7 @@ def get_gene_level_annotations():
   tumor_suppressors.append('EPCAM')
 
   #this file contains some additional gene annotations from CB.
-  function_map_other_genes = pd.read_table(gene_function_map_input, sep='\t')
+  function_map_other_genes = pd.read_csv(gene_function_map_input, sep='\t', low_memory = False)
   other_gof_genes = function_map_other_genes[function_map_other_genes['oncogenic mechanism']=='gain-of-function']['Hugo_Symbol'].tolist()
   other_lof_genes = function_map_other_genes[function_map_other_genes['oncogenic mechanism']=='loss-of-function']['Hugo_Symbol'].tolist()
   #print gene_level_annotation.head()
@@ -69,7 +70,7 @@ def main():
   germline_gene_list = os.path.join(annotation_path, "germline_gene_list.txt")
   training_data_file = os.path.join(scripts_dir, "data/classifier_training_data_V1.txt.gz") 
 
-  rare_variants_76genes = pd.read_table(training_data_file, sep="\t", compression = 'gzip')
+  rare_variants_76genes = pd.read_csv(training_data_file, sep="\t", compression = 'gzip', low_memory = False)
   labels = rare_variants_76genes['signed_out'].tolist()
 
   keep_columns = ['ExAC2_AF', 'ExAC2_AF_ASJ', 'clinvar_pathogenic','clinvar_benign', 'clinvar_uncertain','GOLD_STARS', 
@@ -120,7 +121,7 @@ def main():
                                    min_samples_split= 2, max_features=12, random_state=4, class_weight=rf_weights
                                )
   rf.fit(df_76genes, labels)
-  k_fold = KFold(len(labels), n_folds=10)
+  k_fold = KFold(n_splits=10)
 
   cv_score = cross_val_score(rf, df_76genes, labels, cv=k_fold, scoring='precision')
   print("\nPrecision: %0.2f (+/- %0.2f)" % (cv_score.mean(), cv_score.std() * 2))
@@ -149,10 +150,10 @@ def main():
   print(list_keepcols)
 
   ###read data
-  df_all = pd.read_table(classifier_input, sep = '\t')
+  df_all = pd.read_csv(classifier_input, sep = '\t', low_memory = False)
   print(df_all.shape)
   df_all = df_all.rename(columns={'dbnsfp.fathmm-mkl.coding_rankscore': 'dbnsfp.fathmm.mkl.coding_rankscore', 
-                                'dbnsfp.eigen-pc.raw': 'dbnsfp.eigen.pc.raw'})
+                                'dbnsfp.eigen-pc.raw_coding': 'dbnsfp.eigen.pc.raw'})
 
   variant_types = ['Frame_Shift_Del', 'Frame_Shift_Ins', 'In_Frame_Del', 'In_Frame_Ins',
                    'Intron', 'Missense_Mutation', 'Nonsense_Mutation', 'Splice_Region', 

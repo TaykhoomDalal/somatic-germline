@@ -13,7 +13,7 @@ query_batch = []
 mv = get_client('variant')
 input_file = sys.argv[1]
 output_dir = sys.argv[2]
-print ("running myvariant info .."+input_file)
+print("running myvariant info .."+input_file)
 with open(input_file) as fin:
     Line = fin.readline()
     Line = fin.readline()
@@ -37,8 +37,9 @@ with open(input_file) as fin:
                 output = mv.getvariants(query_batch,
                     fields="dbnsfp,clinvar,evs,cadd,gwassnps,cosmic,docm,snpedia,emv,grasp,civic,cgi", as_dataframe=True)
                 output_file = output_dir+ "/batch"+"_"+str(batch_count)+".txt"
-		output.to_csv(output_file, sep="\t", encoding='utf-8')
-            query_batch = []
+                output.to_csv(output_file, sep="\t", encoding='utf-8')
+
+            query_batch = [] 
             query_batch.append(strquery)
 
         else:
