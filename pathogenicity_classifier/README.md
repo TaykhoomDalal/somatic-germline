@@ -27,10 +27,10 @@ The coordinates are expected to conform to VEP standards in order to allow for c
 
 # Usage
 
-Step 1 : python3 data_proprocessing.py --input_maf input_file --annotated_maf annotated_output_maf 
+Step 1: python3 data_proprocessing.py --input_maf input_file --annotated_maf annotated_output_maf 
   This step adds additional annotations from myvariant.info, OncoKB and dbScSNV and also adds adds more computed annotations.
   
-Step 2 : python3 germline_classifier.py --classifier_input output_from_previous_step --classifier_output classifier_output
+Step 2: python3 germline_classifier.py --classifier_input output_from_previous_step --classifier_output classifier_output
   This will train the Random Forest model on provided training data and perform predictions on input file as save as output file.
 
 Test data is provided in data folder. 
