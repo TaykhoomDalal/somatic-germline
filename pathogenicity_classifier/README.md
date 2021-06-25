@@ -38,11 +38,11 @@ Test data is provided in data folder.
 # Example
 #create all relevant columns and annotations
 
-python data_preprocessing.py --input_maf data/test_input.maf --annotated_maf data/test_annotated.maf
+python3 data_preprocessing.py --input_maf data/test_input.maf --annotated_maf data/test_annotated.maf
 
 #run classifier
 
-python germline_classifier.py --classifier_input data/test_annotated.maf --classifier_output data/test.classifier_output
+python3 germline_classifier.py --classifier_input data/test_annotated.maf --classifier_output data/test.classifier_output
 
 # Output
 Predictions from classifier are stored in column "prediction" as a binary value. The column "prediction_probability" shows the probability of being called pathogenic for every variant. 
