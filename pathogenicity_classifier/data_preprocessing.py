@@ -270,18 +270,19 @@ def downstream_annotations(cohort_maf_uniq, oncogenes, tumor_suppressors):
 	    'Missense_Mutation'])) & (cohort_maf_uniq['Hugo_Symbol'].isin(oncogenes)), 1,  
 	      cohort_maf_uniq['mutation_mechanism_consistency'] ) 
 
-	list_consequences =  cohort_maf_uniq['Consequence'].unique().tolist()
-	list_consequences_uniq = []
-	for i in list_consequences:
-	    list_items = i.split(",")
-	    list_consequences_uniq = list_consequences_uniq + list_items
-	list_consequences_uniq = list(set(list_consequences_uniq))
-	list_consequences_uniq = [i for i in list_consequences_uniq]
-	
-	for colname in list_consequences_uniq:
-	    cohort_maf_uniq['Consequence_'+colname] = np.where(
-	        cohort_maf_uniq['Consequence'].str.find(colname)>-1, 1, 0)
-	list_consequences_uniq = ["Consequence_"+i for i in list_consequences_uniq]  
+	if 'Consequence' in cohort_maf_uniq:
+		list_consequences =  cohort_maf_uniq['Consequence'].unique().tolist()
+		list_consequences_uniq = []
+		for i in list_consequences:
+			list_items = i.split(",")
+			list_consequences_uniq = list_consequences_uniq + list_items
+		list_consequences_uniq = list(set(list_consequences_uniq))
+		list_consequences_uniq = [i for i in list_consequences_uniq]
+		
+		for colname in list_consequences_uniq:
+			cohort_maf_uniq['Consequence_'+colname] = np.where(
+				cohort_maf_uniq['Consequence'].str.find(colname)>-1, 1, 0)
+		list_consequences_uniq = ["Consequence_"+i for i in list_consequences_uniq]  
 
 	splice_variants = cohort_maf_uniq[cohort_maf_uniq['Variant_Classification'].isin(['Splice_Site','Splice_Region'])]
 	non_splice_variants = cohort_maf_uniq[~(cohort_maf_uniq['Variant_Classification'].isin(['Splice_Site','Splice_Region']))]
@@ -327,16 +328,18 @@ def downstream_annotations(cohort_maf_uniq, oncogenes, tumor_suppressors):
 	cohort_maf_uniq['oncogenic'] = np.where(cohort_maf_uniq['oncogenic'].isin(['Oncogenic', 'Likely Oncogenic']), 1, 0)
 
 	#annotate last exon - 5' end of exon 
-	cohort_maf_uniq['exon_number'] = cohort_maf_uniq['Exon_Number'].str.split('/').str.get(0)
-	cohort_maf_uniq['total_exons'] = cohort_maf_uniq['Exon_Number'].str.split('/').str.get(1)
+	if 'Exon_Number' in cohort_maf_uniq:
+		cohort_maf_uniq['exon_number'] = cohort_maf_uniq['Exon_Number'].str.split('/').str.get(0)
+		cohort_maf_uniq['total_exons'] = cohort_maf_uniq['Exon_Number'].str.split('/').str.get(1)
 	cohort_maf_uniq['Protein_position'] = cohort_maf_uniq['Protein_position'].str.replace("\?-", "",  regex = False)
 
+	#breakpoint()
 	cohort_maf_uniq['protein_position'] = cohort_maf_uniq['Protein_position'].str.split('/').str.get(0)
 	cohort_maf_uniq['transcript_len'] = cohort_maf_uniq['Protein_position'].str.split('/').str.get(1)
 
 	cohort_maf_uniq['protein_position'] = np.where(cohort_maf_uniq['protein_position']=='-', 0, cohort_maf_uniq['protein_position'])
 	cohort_maf_uniq['protein_position'] = np.where(cohort_maf_uniq['protein_position'].str.find('?')>-1,
-	                                             cohort_maf_uniq['protein_position'].str.replace('?', '',  regex = False), 
+	                                             cohort_maf_uniq['protein_position'].str.replace('?', '', regex = False), 
 	                                                                 cohort_maf_uniq['protein_position'])
 	cohort_maf_uniq['protein_position'] = np.where(cohort_maf_uniq['protein_position'].str.find('-')>-1,
 	                                             cohort_maf_uniq['protein_position'].str.split("-").str.get(0), 
@@ -345,10 +348,18 @@ def downstream_annotations(cohort_maf_uniq, oncogenes, tumor_suppressors):
 
 	cohort_maf_uniq['protein_position'] = cohort_maf_uniq['protein_position'].fillna(0)
 	cohort_maf_uniq['transcript_len'] = cohort_maf_uniq['transcript_len'].fillna(0)
+
+	# with open('out.txt', 'w') as f:
+	# 	pd.set_option("display.max_rows", None, "display.max_columns", None)
+	# 	print(cohort_maf_uniq['protein_position'], file=f)
+	# 	exit()
+	cohort_maf_uniq['protein_position'] = cohort_maf_uniq['protein_position'].replace(r'^\s*$', 0, regex=True)
 	cohort_maf_uniq['protein_position'] = cohort_maf_uniq['protein_position'].astype(int)
 	cohort_maf_uniq['transcript_len'] = cohort_maf_uniq['transcript_len'].astype(int)
 	cohort_maf_uniq['tail_end'] = np.where((cohort_maf_uniq['protein_position']/cohort_maf_uniq['transcript_len'])>0.95, 1, 0)
-	cohort_maf_uniq['last_exon_terminal'] = np.where((cohort_maf_uniq['tail_end']==1) & 
+	
+	if 'exon_number' in cohort_maf_uniq:
+		cohort_maf_uniq['last_exon_terminal'] = np.where((cohort_maf_uniq['tail_end']==1) & 
 	                                                                   (cohort_maf_uniq['exon_number']==cohort_maf_uniq['total_exons']),
 	                                               1, 0)
 	return cohort_maf_uniq
