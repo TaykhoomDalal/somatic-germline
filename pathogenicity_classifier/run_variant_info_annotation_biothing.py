@@ -11,8 +11,8 @@ line_count = 0
 batch_count = 0
 query_batch = []
 mv = get_client('variant')
-input_file = sys.argv[1]
-output_dir = sys.argv[2]
+input_file = sys.argv[1] # data/[insert].input_to_variantinfo.maf
+output_dir = sys.argv[2] # data/variant_info_batches/
 print("running myvariant info .."+input_file)
 with open(input_file) as fin:
     Line = fin.readline()
@@ -34,8 +34,7 @@ with open(input_file) as fin:
             if(len(query_batch)>0):
 
                 batch_count = batch_count + 1
-                output = mv.getvariants(query_batch,
-                    fields="dbnsfp,clinvar,evs,cadd,gwassnps,cosmic,docm,snpedia,emv,grasp,civic,cgi", as_dataframe=True)
+                output = mv.getvariants(query_batch, fields="dbnsfp,clinvar,evs,cadd,gwassnps,cosmic,docm,snpedia,emv,grasp,civic,cgi", as_dataframe=True)
                 output_file = output_dir+ "/batch"+"_"+str(batch_count)+".txt"
                 output.to_csv(output_file, sep="\t", encoding='utf-8')
 
@@ -48,7 +47,6 @@ with open(input_file) as fin:
         Line = fin.readline()
 	
 batch_count = batch_count + 1
-output = mv.getvariants(query_batch, 
-		fields="dbnsfp,clinvar,evs,cadd,gwassnps,cosmic,docm,snpedia,emv,grasp,civic,cgi", as_dataframe=True)
+output = mv.getvariants(query_batch, fields="dbnsfp,clinvar,evs,cadd,gwassnps,cosmic,docm,snpedia,emv,grasp,civic,cgi", as_dataframe=True)
 output_file = output_dir+ "/batch"+"_"+str(batch_count)+".txt"
 output.to_csv(output_file, sep="\t", encoding='utf-8')
