@@ -67,11 +67,13 @@ def main():
   #paths to annotation sources
   gene_level_input_file = os.path.join(annotation_path, "gene_level_annotation.txt")
   gene_function_map_input = os.path.join(annotation_path, "gene_function_other_genes.txt")
-  germline_gene_list = os.path.join(annotation_path, "germline_gene_list.txt")
+  #germline_gene_list = os.path.join(annotation_path, "germline_gene_list.txt")
   training_data_file = os.path.join(scripts_dir, "data/classifier_training_data_V1.txt.gz") 
 
   rare_variants_76genes = pd.read_csv(training_data_file, sep="\t", compression = 'gzip', low_memory = False)
   labels = rare_variants_76genes['signed_out'].tolist()
+
+  df_all = pd.read_csv(classifier_input, sep = '\t', low_memory = False)
 
   keep_columns = ['ExAC2_AF', 'ExAC2_AF_ASJ', 'clinvar_pathogenic','clinvar_benign', 'clinvar_uncertain','GOLD_STARS', 
   						'Consequence_frameshift_variant','Consequence_splice_region_variant', 'Consequence_missense_variant', 'Consequence_stop_gained', 
@@ -98,6 +100,34 @@ def main():
                            #'Variant_Classification_Nonstop_Mutation', 'Variant_Classification_RNA',
                              'MinorAlleleFreq' ,'oncogenic', 'is-a-hotspot',
                            'ada_score', 'last_exon_terminal',
+                               'OMIM', 'cell cycle checkpoint', 'HR', 'DSB', 'DNA replication', 'DSBR', 'MMR', 'DNA repair', 
+                                'cell cycle', 'response to DNA damage stimulus', 
+                                'BER', 'NER', 'OncoKB Oncogene', 'OncoKB TSG','mutation_mechanism_consistency',
+                                 'ratio_ASJ', 'splice_dist', 
+                               ]
+
+  if 'exon_number' not in df_all and 'Consequence' not in df_all:
+    keep_columns = ['ExAC2_AF', 'ExAC2_AF_ASJ', 'clinvar_pathogenic','clinvar_benign', 'clinvar_uncertain','GOLD_STARS', 
+  						      'Variant_Classification', 
+                            'dbnsfp.fathmm.mkl.coding_rankscore', 'dbnsfp.mutationassessor.rankscore',  'dbnsfp.eigen.pc.raw',
+                            'cadd.phast_cons.primate', 'dbnsfp.genocanyon.score',  'MinorAlleleFreq' ,'oncogenic', 'is-a-hotspot',
+                           'ada_score', 'OMIM', 'cell cycle checkpoint', 'HR', 'DSB', 'DNA replication', 'DSBR', 'MMR', 'DNA repair', 
+                                'cell cycle', 'response to DNA damage stimulus', 
+                                'BER', 'NER', 'OncoKB Oncogene', 'OncoKB TSG','mutation_mechanism_consistency',
+                                 'ratio_ASJ', 'splice_dist',
+                           ]
+
+  final_columns = ['ExAC2_AF', 'clinvar_pathogenic',
+                            'ExAC2_AF_ASJ',
+                           'GOLD_STARS', 'Variant_Classification_Nonsense_Mutation',
+                           'clinvar_benign', 'clinvar_uncertain' , 'dbnsfp.fathmm.mkl.coding_rankscore', 
+                           'dbnsfp.mutationassessor.rankscore',  'dbnsfp.eigen.pc.raw',
+                            'cadd.phast_cons.primate', 
+                           'dbnsfp.genocanyon.score','Variant_Classification_Intron', 
+                           'Variant_Classification_Splice_Region','Variant_Classification_Splice_Site',
+                           #'Variant_Classification_Nonstop_Mutation', 'Variant_Classification_RNA',
+                             'MinorAlleleFreq' ,'oncogenic', 'is-a-hotspot',
+                           'ada_score',
                                'OMIM', 'cell cycle checkpoint', 'HR', 'DSB', 'DNA replication', 'DSBR', 'MMR', 'DNA repair', 
                                 'cell cycle', 'response to DNA damage stimulus', 
                                 'BER', 'NER', 'OncoKB Oncogene', 'OncoKB TSG','mutation_mechanism_consistency',
@@ -159,6 +189,7 @@ def main():
                    'Intron', 'Missense_Mutation', 'Nonsense_Mutation', 'Splice_Region', 
                    'Splice_Site', 'Translation_Start_Site']
   df_all = df_all[df_all['Variant_Classification'].isin(variant_types)] #remove in V2
+
   df_all_subset = df_all[keep_columns]
 
   df_all_subset = pd.get_dummies(df_all_subset)
@@ -192,6 +223,9 @@ def main():
                                            0, df_all['prediction'])
 
   final_columns_to_report = ['Chromosome', 'Start_Position', 'End_Position', 'Reference_Allele', 'Alternate_Allele', 'Variant_Type', 'Variant_Classification', 'Hugo_Symbol', 'HGVSc', 'Protein_position', 'HGVSp_Short', 'Normal_Sample', 'n_alt_count', 'n_depth', 'ExAC2_AF', 'ExAC2_AF_ASJ', 'Consequence', 'CLINICAL_SIGNIFICANCE', 'GOLD_STARS', 'Exon_Number', 'oncogenic', 'last_exon_terminal', 'prediction', 'prediction_probability', 'truncating_oncogene',]
+
+  if 'exon_number' not in df_all and 'Consequence' not in df_all:
+    final_columns_to_report = ['Chromosome', 'Start_Position', 'End_Position', 'Reference_Allele', 'Alternate_Allele', 'Variant_Type', 'Variant_Classification', 'Hugo_Symbol', 'HGVSc', 'Protein_position', 'HGVSp_Short', 'Normal_Sample', 'n_alt_count', 'n_depth', 'ExAC2_AF', 'ExAC2_AF_ASJ', 'CLINICAL_SIGNIFICANCE', 'GOLD_STARS', 'oncogenic', 'prediction', 'prediction_probability', 'truncating_oncogene',]
 
   df_all[final_columns_to_report].to_csv(classifier_output, sep = '\t', index = None)
 
