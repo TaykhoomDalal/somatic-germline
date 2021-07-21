@@ -132,5 +132,6 @@ def main():
     
     merge_files(output_maf, input_maf[:index]+'mini/')
 
+
 if __name__ == '__main__':
 	main()	
