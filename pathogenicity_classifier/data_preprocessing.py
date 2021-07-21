@@ -1,9 +1,10 @@
 import pandas as pd
-pd.options.mode.chained_assignment = None  # default='warn'
 import numpy as np
 import os
 import sys
 import argparse
+
+ONCOKB_API_TOKEN = "a2c2ea05-c8c4-4dce-ad5a-0be1cc99b24d"
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--input_maf', type=str, default='data/test_input.maf', help='The input maf file')
@@ -22,57 +23,69 @@ def get_gene_list(input_file):
 	#print(len(cv_gene_list))
 	return(cv_gene_list)
 
-def get_myvariant_annotations(inputmaf, input_df):
-	print("\n\nrun myvariant info to get annotations")
-	#get relevant columns from maf file to annotate for myvariant info
-	#Chromosome\tStart_Position\tReference_Allele\tAlternate_Allele\tEnd_Position\tVariant_Type
-	variant_info_input_file = inputmaf.replace(".maf",".input_to_variantinfo.maf")
-	columns_to_keep = ['Chromosome', 'Start_Position', 'Reference_Allele', 'Alternate_Allele', 'End_Position', 'Variant_Type']
-	input_df_subset = input_df[columns_to_keep]
-	input_df_subset = input_df_subset.drop_duplicates()
-	input_df_subset.to_csv(variant_info_input_file, sep = '\t', index = None)
+# def get_myvariant_annotations(inputmaf, input_df):
+# 	print("\n\nrun myvariant info to get annotations")
+# 	#get relevant columns from maf file to annotate for myvariant info
+# 	#Chromosome\tStart_Position\tReference_Allele\tAlternate_Allele\tEnd_Position\tVariant_Type
+# 	variant_info_input_file = inputmaf.replace(".maf",".input_to_variantinfo.maf")
+# 	columns_to_keep = ['Chromosome', 'Start_Position', 'Reference_Allele', 'Alternate_Allele', 'End_Position', 'Variant_Type']
+# 	input_df_subset = input_df[columns_to_keep]
+# 	input_df_subset = input_df_subset.drop_duplicates()
+# 	input_df_subset.to_csv(variant_info_input_file, sep = '\t', index = None)
 
-	#we want to sort without the header, so save header to a different file and sort without header, and finally merge files and delete tmp file
-	#faster awk solution but discontinued due to possible reordering of input files
-	#variant_info_file_tmp = inputmaf.replace(".maf",".input_to_variantinfo.tmp.maf")
-	# str_awk = '''awk  -F "\\t" 'BEGIN {OFS = "\\t"} {print $5, $6, $11, $12, $7, $10 }' '''+ inputmaf +" | tail -n+1 | sort | uniq  > "+variant_info_file_tmp
-	# os.system(str_awk)
-	# print str_awk
-	# str_header = "cat " +scripts_dir+ "myvariantinfo_header.txt " +variant_info_file_tmp+" > "+variant_info_input_file
-	# str_rm_tmp = "rm -rf "+variant_info_file_tmp
-	# os.system(str_header)
-	# os.system(str_rm_tmp)
-	#script below calls wrapper around myvariant.info and performs batch-wise annotation. 
-	myvariant_path = os.path.join(scripts_dir, "run_variant_info_annotation_biothing.py")
-	str_myvariant = "python3 "+ myvariant_path +" "+variant_info_input_file+" "+myvariant_batch_location
-	os.system(str_myvariant)
-	print(str_myvariant)
+# 	#we want to sort without the header, so save header to a different file and sort without header, and finally merge files and delete tmp file
+# 	#faster awk solution but discontinued due to possible reordering of input files
+# 	#variant_info_file_tmp = inputmaf.replace(".maf",".input_to_variantinfo.tmp.maf")
+# 	# str_awk = '''awk  -F "\\t" 'BEGIN {OFS = "\\t"} {print $5, $6, $11, $12, $7, $10 }' '''+ inputmaf +" | tail -n+1 | sort | uniq  > "+variant_info_file_tmp
+# 	# os.system(str_awk)
+# 	# print str_awk
+# 	# str_header = "cat " +scripts_dir+ "myvariantinfo_header.txt " +variant_info_file_tmp+" > "+variant_info_input_file
+# 	# str_rm_tmp = "rm -rf "+variant_info_file_tmp
+# 	# os.system(str_header)
+# 	# os.system(str_rm_tmp)
+# 	#script below calls wrapper around myvariant.info and performs batch-wise annotation. 
+# 	myvariant_path = os.path.join(scripts_dir, "run_variant_info_annotation_biothing.py")
+# 	str_myvariant = "python3 "+ myvariant_path +" "+variant_info_input_file+" "+myvariant_batch_location
+# 	os.system(str_myvariant)
+# 	print(str_myvariant)
 
-def merge_myvariant_annotations():
-	#read and merge variant info batches
-	print("\n\nmerge myvariant info annotations to "+variant_info_output_merge)
-	files = os.listdir(myvariant_batch_location)
-	keep_columns = ['query', 'cadd.encode.h3k4me1', 'dbnsfp.fathmm-mkl.coding_rankscore', 
-                         'dbnsfp.mutationassessor.rankscore', 'cadd.encode.h3k27ac',  'dbnsfp.eigen-pc.raw_coding',
-                         'cadd.phast_cons.primate', 'dbnsfp.genocanyon.score', 'cadd.encode.exp']
+# 	# deleting unecessary intermediate file
+# 	if os.path.isfile(variant_info_input_file):
+# 		print("delete unneeded file: " + variant_info_input_file)
+# 		str_rm = "rm -f "+variant_info_input_file
+# 		os.system(str_rm)
 
-	if os.path.isfile(variant_info_output_merge):
-		print("delete existing variant info merge file")
-		str_rm = "rm -f "+variant_info_output_merge
-		os.system(str_rm)
+# def merge_myvariant_annotations():
+# 	#read and merge variant info batches
+# 	print("\n\nmerge myvariant info annotations to "+variant_info_output_merge)
+# 	files = os.listdir(myvariant_batch_location)
+# 	keep_columns = ['query', 'cadd.encode.h3k4me1', 'dbnsfp.fathmm-mkl.coding_rankscore', 
+#                          'dbnsfp.mutationassessor.rankscore', 'cadd.encode.h3k27ac',  'dbnsfp.eigen-pc.raw_coding',
+#                          'cadd.phast_cons.primate', 'dbnsfp.genocanyon.score', 'cadd.encode.exp']
 
-	for filename in files:
-	    batch_input = os.path.join(myvariant_batch_location, filename)
-	    batch_data = pd.read_csv(batch_input, sep='\t', low_memory = False)
-	    for column in keep_columns:
-	        if(column not in batch_data.columns.tolist()):
-	            batch_data[column] = np.NaN
-	            print("\n\nWARNING : myvariant.info batch file "+batch_input+" does not contain the column "+column)
-	    batch_data = batch_data[keep_columns]
-	    if not os.path.isfile(variant_info_output_merge):
-	        batch_data.to_csv(variant_info_output_merge, header =True, index=None, sep='\t')
-	    else: # else it exists so append without writing the header
-	        batch_data.to_csv(variant_info_output_merge, mode = 'a',header=False, index=None, sep='\t')
+# 	if os.path.isfile(variant_info_output_merge):
+# 		print("delete existing variant info merge file")
+# 		str_rm = "rm -f "+variant_info_output_merge
+# 		os.system(str_rm)
+
+# 	for filename in files:
+# 		batch_input = os.path.join(myvariant_batch_location, filename)
+# 		batch_data = pd.read_csv(batch_input, sep='\t', low_memory = False)
+# 		for column in keep_columns:
+# 			if(column not in batch_data.columns.tolist()):
+# 				batch_data[column] = np.NaN
+# 				print("\n\nWARNING : myvariant.info batch file "+batch_input+" does not contain the column "+column)
+# 		batch_data = batch_data[keep_columns]
+
+# 		if not os.path.isfile(variant_info_output_merge):
+# 			batch_data.to_csv(variant_info_output_merge, header =True, index=None, sep='\t')
+# 		else: # else it exists so append without writing the header
+# 			batch_data.to_csv(variant_info_output_merge, mode = 'a',header=False, index=None, sep='\t')
+
+# 	#deleting unnecessary batch directory
+# 	print("deleting "+myvariant_batch_location)
+# 	str_rm = "rm -rf " + myvariant_batch_location
+# 	os.system(str_rm)
 
 
 def get_oncokb_annotations(inputmaf, input_df):
@@ -91,7 +104,7 @@ def get_oncokb_annotations(inputmaf, input_df):
 	# str_awk = '''awk  -F "\\t" 'BEGIN {OFS = "\\t"} {print $1, $9, $32, $17, "Normal_Sample"}' ''' +inputmaf+" | sort | uniq  > "+oncokb_input_file_tmp
 	# str_header = "cat " + scripts_dir + "oncokb_header.txt " +oncokb_input_file_tmp+" > "+oncokb_input_file
 	cwd = os.getcwd()
-	oncokb_cmd = "python3 MafAnnotator.py -a -i "+cwd+"/"+oncokb_input_file+" -o "+cwd+"/"+oncokb_output_file
+	oncokb_cmd = "python3 MafAnnotator.py -a -i "+cwd+"/"+oncokb_input_file+" -o "+cwd+"/"+oncokb_output_file+" -b "+ONCOKB_API_TOKEN
 	#oncoKB needs to be run from it's own directory so change to that dir and then back
 	os.chdir(oncokb_path)
 	os.system(oncokb_cmd)
@@ -101,13 +114,15 @@ def get_oncokb_annotations(inputmaf, input_df):
 def join_annotations(oncokb_file, variantinfo_file, cohort_maf):
 	print("\n\njoin different annotation sources")
 	oncoKB_maf = pd.read_csv(oncokb_file, sep = '\t', low_memory = False)
-	print(oncoKB_maf.shape)
+	print(oncokb_file + " shape is " +str(oncoKB_maf.shape))
 	variantinfo_maf = pd.read_csv(variantinfo_file, sep = '\t', low_memory = False)
-	print(variantinfo_maf.shape)
+	print(variantinfo_file + " shape is " + str(variantinfo_maf.shape))
 
 	#merge with OncoKB
 	oncoKB_maf['mutation']= oncoKB_maf['Hugo_Symbol']+":"+oncoKB_maf['HGVSp_Short']+":"+oncoKB_maf['Protein_position'].astype(str)
 	cohort_maf['mutation']= cohort_maf['Hugo_Symbol']+":"+cohort_maf['HGVSp_Short']+":"+cohort_maf['Protein_position'].astype(str)
+
+	oncoKB_maf = oncoKB_maf.rename(columns = {'ONCOGENIC':'oncogenic', 'IS-A-HOTSPOT': 'is-a-hotspot', 'IS-A-3D-HOTSPOT': 'is-a-3d-hotspot'})
 	oncoKB_maf_subset = oncoKB_maf[['mutation', 'oncogenic', 'is-a-hotspot', 'is-a-3d-hotspot']]
 	oncoKB_maf_subset = oncoKB_maf_subset[~(pd.isnull(oncoKB_maf_subset['mutation']))]
 	cohort_maf = pd.merge(cohort_maf, oncoKB_maf_subset, on = 'mutation', how = 'left')
@@ -146,7 +161,7 @@ def join_annotations(oncokb_file, variantinfo_file, cohort_maf):
 	        dbscSNV_1 = dbscSNV_1[column_names]
 	        dbscSNV = dbscSNV.append(dbscSNV_1, ignore_index=True)
 	    
-	print((dbscSNV.shape))
+	print(dbscSNV.shape)
 	print(dbscSNV.head())
 	dbscSNV.columns = ['Chromosome','Start_Position', 'Reference_Allele',  'Alternate_Allele', 'ada_score', 'rf_score']
 	dbscSNV['Chromosome'] = dbscSNV['Chromosome'].astype(str)
@@ -164,6 +179,7 @@ def join_annotations(oncokb_file, variantinfo_file, cohort_maf):
 
 
 def Calculate_MAF(cohort_maf):
+		
 	print("\n\ncalculate Minor allele frequency")
 	sample_list = cohort_maf[['Normal_Sample']].drop_duplicates()
 	sample_list['Panel_type'] = sample_list['Normal_Sample'].str.split("-").str.get(-1)
@@ -196,7 +212,8 @@ def Calculate_MAF(cohort_maf):
 	                            ])['n_alt_freq'].median()
 	        
 	    }).reset_index()
-	print(MAF_alterations.shape)
+	print("MAF_alterations shape is " + str(MAF_alterations.shape))
+	print("input data shape is " + str(cohort_maf.shape))
 	MAF_alterations['sample_count_bypanel'] = dict_panel_count['IM3']+dict_panel_count['IM5']+dict_panel_count['IM6']
 
 	#adjust MAF calculation for genes that are only in CV5 or CV6
@@ -270,22 +287,21 @@ def downstream_annotations(cohort_maf_uniq, oncogenes, tumor_suppressors):
 	    'Missense_Mutation'])) & (cohort_maf_uniq['Hugo_Symbol'].isin(oncogenes)), 1,  
 	      cohort_maf_uniq['mutation_mechanism_consistency'] ) 
 
-	if 'Consequence' in cohort_maf_uniq:
-		list_consequences =  cohort_maf_uniq['Consequence'].unique().tolist()
-		list_consequences_uniq = []
-		for i in list_consequences:
-			list_items = i.split(",")
-			list_consequences_uniq = list_consequences_uniq + list_items
-		list_consequences_uniq = list(set(list_consequences_uniq))
-		list_consequences_uniq = [i for i in list_consequences_uniq]
-		
-		for colname in list_consequences_uniq:
-			cohort_maf_uniq['Consequence_'+colname] = np.where(
-				cohort_maf_uniq['Consequence'].str.find(colname)>-1, 1, 0)
-		list_consequences_uniq = ["Consequence_"+i for i in list_consequences_uniq]  
+	list_consequences =  cohort_maf_uniq['Consequence'].unique().tolist()
+	list_consequences_uniq = []
+	for i in list_consequences:
+		list_items = i.split(",")
+		list_consequences_uniq = list_consequences_uniq + list_items
+	list_consequences_uniq = list(set(list_consequences_uniq))
+	list_consequences_uniq = [i for i in list_consequences_uniq]
+	
+	for colname in list_consequences_uniq:
+		cohort_maf_uniq['Consequence_'+colname] = np.where(
+			cohort_maf_uniq['Consequence'].str.find(colname)>-1, 1, 0)
+	list_consequences_uniq = ["Consequence_"+i for i in list_consequences_uniq]  
 
-	splice_variants = cohort_maf_uniq[cohort_maf_uniq['Variant_Classification'].isin(['Splice_Site','Splice_Region'])]
-	non_splice_variants = cohort_maf_uniq[~(cohort_maf_uniq['Variant_Classification'].isin(['Splice_Site','Splice_Region']))]
+	splice_variants = cohort_maf_uniq.copy()[cohort_maf_uniq['Variant_Classification'].isin(['Splice_Site','Splice_Region'])]
+	non_splice_variants = cohort_maf_uniq.copy()[~(cohort_maf_uniq['Variant_Classification'].isin(['Splice_Site','Splice_Region']))]
 	non_splice_variants['splice_dist'] = -200
 
 	splice_variants['temp'] = splice_variants['HGVSc']
@@ -299,7 +315,7 @@ def downstream_annotations(cohort_maf_uniq, oncogenes, tumor_suppressors):
 	splice_variants = splice_variants.drop(['temp', 'temp1'], axis =1 )
 
 	cohort_maf_uniq = pd.concat([splice_variants, non_splice_variants])
-	print(cohort_maf_uniq.shape)
+	print("cohort_maf_unique shape is " + str(cohort_maf_uniq.shape))
 
 	cohort_maf_uniq['splice_dist'] = cohort_maf_uniq['splice_dist'].astype(int)
 
@@ -328,9 +344,9 @@ def downstream_annotations(cohort_maf_uniq, oncogenes, tumor_suppressors):
 	cohort_maf_uniq['oncogenic'] = np.where(cohort_maf_uniq['oncogenic'].isin(['Oncogenic', 'Likely Oncogenic']), 1, 0)
 
 	#annotate last exon - 5' end of exon 
-	if 'Exon_Number' in cohort_maf_uniq:
-		cohort_maf_uniq['exon_number'] = cohort_maf_uniq['Exon_Number'].str.split('/').str.get(0)
-		cohort_maf_uniq['total_exons'] = cohort_maf_uniq['Exon_Number'].str.split('/').str.get(1)
+	# if 'Exon_Number' in cohort_maf_uniq:
+	cohort_maf_uniq['exon_number'] = cohort_maf_uniq['Exon_Number'].str.split('/').str.get(0)
+	cohort_maf_uniq['total_exons'] = cohort_maf_uniq['Exon_Number'].str.split('/').str.get(1)
 	cohort_maf_uniq['Protein_position'] = cohort_maf_uniq['Protein_position'].str.replace("\?-", "",  regex = False)
 
 	#breakpoint()
@@ -349,17 +365,12 @@ def downstream_annotations(cohort_maf_uniq, oncogenes, tumor_suppressors):
 	cohort_maf_uniq['protein_position'] = cohort_maf_uniq['protein_position'].fillna(0)
 	cohort_maf_uniq['transcript_len'] = cohort_maf_uniq['transcript_len'].fillna(0)
 
-	# with open('out.txt', 'w') as f:
-	# 	pd.set_option("display.max_rows", None, "display.max_columns", None)
-	# 	print(cohort_maf_uniq['protein_position'], file=f)
-	# 	exit()
 	cohort_maf_uniq['protein_position'] = cohort_maf_uniq['protein_position'].replace(r'^\s*$', 0, regex=True)
 	cohort_maf_uniq['protein_position'] = cohort_maf_uniq['protein_position'].astype(int)
 	cohort_maf_uniq['transcript_len'] = cohort_maf_uniq['transcript_len'].astype(int)
 	cohort_maf_uniq['tail_end'] = np.where((cohort_maf_uniq['protein_position']/cohort_maf_uniq['transcript_len'])>0.95, 1, 0)
 	
-	if 'exon_number' in cohort_maf_uniq:
-		cohort_maf_uniq['last_exon_terminal'] = np.where((cohort_maf_uniq['tail_end']==1) & 
+	cohort_maf_uniq['last_exon_terminal'] = np.where((cohort_maf_uniq['tail_end']==1) & 
 	                                                                   (cohort_maf_uniq['exon_number']==cohort_maf_uniq['total_exons']),
 	                                               1, 0)
 	return cohort_maf_uniq
@@ -388,16 +399,16 @@ def main():
 	working_dir = os.path.dirname(full_input_path)
 	print("all intermediate files will get created in this directory : "+working_dir)
 	
-	myvariant_batch_location = os.path.join(working_dir, "variant_info_batches")
+	# myvariant_batch_location = os.path.join(working_dir, "variant_info_batches")
 	variant_info_output_merge = os.path.join(working_dir, "merged_variant_info_batches.txt")
 
-	#check if variant_info_batch folder exists, if not, create it
-	if(os.path.isdir(myvariant_batch_location)):
-		pass
-	else:
-		print ("creating directory for writing myvariant info batch files")
-		create_dir = "mkdir "+myvariant_batch_location
-		os.system(create_dir)
+	# # check if variant_info_batch folder exists, if not, create it
+	# if(os.path.isdir(myvariant_batch_location)):
+	# 	pass
+	# else:
+	# 	print ("creating directory for writing myvariant info batch files")
+	# 	create_dir = "mkdir "+myvariant_batch_location
+	# 	os.system(create_dir)
 
 	gene_list_cv5_file = os.path.join(annotation_path, "IMPACT_cv5.gene_intervals.list.annotated")
 	cv5_gene_list = get_gene_list(gene_list_cv5_file)
@@ -413,18 +424,24 @@ def main():
 	cv6_only_list = set(cv6_gene_list).difference(set(cv5_gene_list))
 
 	input_maf_data = pd.read_csv(input_maf, sep = '\t', low_memory = False)
-	print(input_maf_data.shape)
+	print(input_maf + " shape is " + str(input_maf_data.shape))
 
-	get_myvariant_annotations(input_maf, input_maf_data)
+###############################################################################
+	str_myvariant = "python3 variant_annotator.py --input_maf "+input_maf+" --output_maf " + variant_info_output_merge
+	os.system(str_myvariant)
+	print(str_myvariant)
+##########################################################################################
+
+	# get_myvariant_annotations(input_maf, input_maf_data)
+	# merge_myvariant_annotations()
 
 	oncokb_maf  = get_oncokb_annotations(input_maf, input_maf_data)
-	merge_myvariant_annotations()
 
 	merged_maf = join_annotations(oncokb_maf, variant_info_output_merge, input_maf_data)
 	merged_maf = merged_maf.drop_duplicates()
 	merged_maf.to_csv(annotated_maf.replace(".maf", ".extended.maf"), sep = '\t', index = None)
 
-	print(merged_maf.shape)
+	print(annotated_maf + " shape is " + str(merged_maf.shape))
 	#remove black list variants
 	try:
 		merged_maf = merged_maf[~(merged_maf['DMP_Blacklist']=='Blacklist')]
@@ -432,7 +449,7 @@ def main():
 		pass
 	except KeyError:
 		pass
-	print(merged_maf.shape)
+	print(annotated_maf + " shape is " + str(merged_maf.shape))
 
 	#filter variant types to include only those in training data -- this step has been removed 
 	variant_types = ['Frame_Shift_Del', 'Frame_Shift_Ins', 'In_Frame_Del', 'In_Frame_Ins',
@@ -451,12 +468,13 @@ def main():
 
 	#merged_maf_rare = merged_maf[(merged_maf['MinorAlleleFreq']<0.02) ]
 	merged_maf_rare = merged_maf[merged_maf['ExAC2_AF']<0.02 ]
+
 	merged_maf_uniq = merged_maf_rare.drop_duplicates(subset=['Chromosome', 'Start_Position',
 	                                                                 'End_Position', 'Reference_Allele',
 	                                                                 'Alternate_Allele'])
-	print(merged_maf_uniq.shape)
+	print(annotated_maf + " shape is " + str(merged_maf_uniq.shape))
 
-	merged_maf_uniq.to_csv(annotated_maf.replace(".maf", ".uniq.maf"), sep = '\t', index = None)
+	merged_maf_uniq.to_csv("merged_maf_uniq.maf", sep = '\t', index = None)
 
 	oncogenes, tumor_suppressors, gene_level_annotation = get_gene_level_annotations()
 	merged_maf_uniq = pd.merge(merged_maf_uniq, gene_level_annotation, on='Hugo_Symbol', how='left')

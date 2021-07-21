@@ -5,6 +5,7 @@ import itertools
 import pandas as pd
 import numpy as np
 import os
+import time
 from multiprocessing import Process, Manager, cpu_count
 
 def merge_files(output, file_locs):
@@ -32,6 +33,7 @@ def merge_files(output, file_locs):
         else: # else it exists so append without writing the header
 	        batch_data.to_csv(output, mode = 'a',header=False, index=None, sep='\t')
     
+    print("deleting " + file_locs)
     str_rm = "rm -rf " + file_locs
     os.system(str_rm)
 
@@ -104,7 +106,7 @@ def main():
     input_maf_data = input_maf_data.loc[:, ['Chromosome', 'Start_Position', 'Reference_Allele', 'Alternate_Allele', 'End_Position', 'Variant_Type']]
     input_maf_data.drop_duplicates(inplace=True)
     input_maf_data.to_csv(new_file_name, sep = '\t', index = None)
-
+    time.sleep(15)
     num_proc = cpu_count()
 
     manager = Manager()
@@ -128,7 +130,7 @@ def main():
         p.join()
 
     # remove the temporary file
-    os.remove(new_file_name)
+    #os.remove(new_file_name)
     
     merge_files(output_maf, input_maf[:index]+'mini/')
 
