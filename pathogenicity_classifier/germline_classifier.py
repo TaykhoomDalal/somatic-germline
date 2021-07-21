@@ -4,7 +4,6 @@ import os
 import sklearn
 from sklearn.ensemble import RandomForestClassifier
 from sklearn import preprocessing
-from sklearn.metrics import confusion_matrix
 from sklearn.metrics import average_precision_score
 from sklearn.model_selection import KFold, cross_val_score
 import sys
