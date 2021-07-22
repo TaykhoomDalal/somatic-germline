@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import xgboost as xgb
 from collections import Counter
 
-def remove_muts(df, types): #(COME BACK AND ADD INIDIVIDUAL CONDS)
+def remove_muts(df, types):
     if 'Missense' in types:
         df = df[~df.Variant_Classification.str.startswith('Missense_Mutation')]
     if 'Splice' in types:
@@ -141,7 +141,7 @@ def main():
     gene_function_map_input = os.path.join(annotation_path, "gene_function_other_genes.txt")
     
     if training_data_file == None:
-        training_data_file = os.path.join(scripts_dir, "data/classifier_training_data_V1.txt.gz") 
+        training_data_file = os.path.join(scripts_dir, "input_files/classifier_training_data_V2.txt.gz") 
 
     # read in the training data, print its shape, and get the training labels
     compr = None
