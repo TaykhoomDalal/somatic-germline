@@ -1,0 +1,40 @@
+BER
+Consequence_frameshift_variant
+Consequence_missense_variant
+Consequence_splice_acceptor_variant
+Consequence_splice_donor_variant
+Consequence_splice_region_variant
+Consequence_stop_gained
+DNA repair
+DNA replication
+DSB
+DSBR
+ExAC2_AF
+ExAC2_AF_ASJ
+GOLD_STARS
+HR
+MMR
+MinorAlleleFreq
+NER
+OMIM
+OncoKB Oncogene
+OncoKB TSG
+Variant_Classification
+ada_score
+cadd.phast_cons.primate
+cell cycle
+cell cycle checkpoint
+clinvar_benign
+clinvar_pathogenic
+clinvar_uncertain
+dbnsfp.eigen.pc.raw
+dbnsfp.fathmm.mkl.coding_rankscore
+dbnsfp.genocanyon.score
+dbnsfp.mutationassessor.rankscore
+is-a-hotspot
+last_exon_terminal
+mutation_mechanism_consistency
+oncogenic
+ratio_ASJ
+response to DNA damage stimulus
+splice_dist
