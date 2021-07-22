@@ -42,9 +42,11 @@ Test data is provided in input_data folder.
 Note: ** This assumes you are in the folder containing the python scripts **
 
 #create all relevant columns and annotations
+
 python3 preprocess.py --input_maf ../input_files/test_input.maf --annotated_maf ../output_files/annotated_test_input.maf --scripts_dir ..
 
 #run classifier
+
 python3 germline_pathogenicity_classifier.py --classifier_input ../output_files/annotated_test_input.maf --classifier_output ../output_files/classificer_out_test_input.maf --scripts_dir
 
 # Output
