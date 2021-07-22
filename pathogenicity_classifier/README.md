@@ -20,33 +20,36 @@ Normal_Sample, n_alt_count, n_depth,
 
 ExAC2_AF, ExAC2_AF_ASJ, CLINICAL_SIGNIFICANCE, GOLD_STARS,  
 
-
-
 If you don't have variant level and ClinVar, gnomAD annotations, please perform preliminary annotation with VariantEffectPredictor
 The coordinates are expected to conform to VEP standards in order to allow for correct merging with curated training data
 
 # Usage
 
-Step 1: python3 data_proprocessing.py --input_maf input_file --annotated_maf annotated_output_maf 
-  This step adds additional annotations from myvariant.info, OncoKB and dbScSNV and also adds adds more computed annotations.
-  
-Step 2: python3 germline_classifier.py --classifier_input output_from_previous_step --classifier_output classifier_output
-  This will train the Random Forest model on provided training data and perform predictions on input file as save as output file.
+Step 1: python3 preprocess.py --input_maf [/path/to/input_file_location] --annotated_maf [/path/to/desired/output_file_location] --scripts_dir [/path/to/annotation_files/and/oncokb_annotator] [OPTIONAL:--debug]
 
-Test data is provided in data folder. 
+This step adds additional annotations from myvariant.info, OncoKB and dbScSNV and uses some of this information to create more annotations (Ex. MAF).
+  
+Step 2: python3 germline_classifier.py --classifier_input [/path/to/results/from/preprocess.py] --classifier_output [/path/to/desired/classifier_output_location] --scripts_dir [/path/to/gene_annotation_data] --training_data [/path/to/training_data] --type [space separated values from type_list**] --features [/path/to/features_to_keep_file]
+
+  This will train the Random Forest model on the provided training data and perform predictions on the output file.
+
+Test data is provided in input_data folder. 
+
+** type_list = ['Missense', 'Splice', 'Truncating', 'Misc','In_Frame', 'Silent',  "UTR", "Intron", "IGR", "RNA"]
 
 # Example
-#create all relevant columns and annotations
 
-python3 data_preprocessing.py --input_maf data/test_input.maf --annotated_maf data/test_annotated.maf
+Note: ** This assumes you are in the folder containing the python scripts **
+
+#create all relevant columns and annotations
+python3 preprocess.py --input_maf ../input_files/test_input.maf --annotated_maf ../output_files/annotated_test_input.maf --scripts_dir ..
 
 #run classifier
-
-python3 germline_classifier.py --classifier_input data/test_annotated.maf --classifier_output data/test.classifier_output
+python3 germline_pathogenicity_classifier.py --classifier_input ../output_files/annotated_test_input.maf --classifier_output ../output_files/classificer_out_test_input.maf --scripts_dir
 
 # Output
 Predictions from classifier are stored in column "prediction" as a binary value. The column "prediction_probability" shows the probability of being called pathogenic for every variant. 
 
-Note : the scripts extract rare variants based on gnomAD frequencies and minor allele frequency within provided aggregate maf. It also extracts unique variants and subsets to variant classes that exclude UTR and silent mutations.  
+Note: the scripts extract rare variants based on gnomAD frequencies and minor allele frequency within provided aggregate maf. It also extracts unique variants and subsets to variant classes that exclude UTR and silent mutations.  
 
 
