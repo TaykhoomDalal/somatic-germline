@@ -47,7 +47,7 @@ python3 preprocess.py --input_maf ../input_files/test_input.maf --annotated_maf 
 
 #run classifier
 
-python3 germline_pathogenicity_classifier.py --classifier_input ../output_files/annotated_test_input.maf --classifier_output ../output_files/classificer_out_test_input.maf --scripts_dir
+python3 germline_pathogenicity_classifier.py --classifier_input ../output_files/annotated_test_input.maf --classifier_output ../output_files/classifier_out_test_input.maf --scripts_dir ..
 
 # Output
 Predictions from classifier are stored in column "prediction" as a binary value. The column "prediction_probability" shows the probability of being called pathogenic for every variant. 
