@@ -1,4 +1,3 @@
-import os
 import argparse
 import myvariant
 import itertools
@@ -39,6 +38,50 @@ def merge_files(output, file_locs, debug):
         print("deleting " + file_locs)
         str_rm = "rm -rf " + file_locs
         os.system(str_rm)
+
+# def merge_files(output, file_locs, debug):
+#     print("\nmerge myvariant info annotations to "+output)
+#     files = os.listdir(file_locs)
+#     # keep_columns = ['query', 'cadd.encode.h3k4me1', 'dbnsfp.fathmm-mkl.coding_rankscore', 
+#                     # 'dbnsfp.mutationassessor.rankscore', 'cadd.encode.h3k27ac',  'dbnsfp.eigen-pc.raw_coding',
+#                     # 'cadd.phast_cons.primate', 'dbnsfp.genocanyon.score', 'cadd.encode.exp']
+
+#     if os.path.isfile(output):
+#         print("deleting existing %s file" % output)
+#         str_rm = "rm -f "+output
+#         os.system(str_rm)
+
+#     cols = set()
+#     batch_names = []
+#     for filename in files:
+#         batch_input = os.path.join(file_locs, filename)
+#         batch_names.append(batch_input)
+
+#         batch_data = pd.read_csv(batch_input, sep='\t', low_memory = False)
+
+#         cols.update(batch_data.columns.tolist())
+
+
+#     for batch in batch_names:
+
+#         batch_data = pd.read_csv(batch, sep='\t', low_memory = False)
+
+#         diff = cols - set(batch_data.columns.tolist())
+
+#         for column in diff:
+#             batch_data[column] = np.NaN
+#             # print("WARNING : myvariant.info batch file "+batch_input+" does not contain the column "+column)
+
+#         if not os.path.isfile(output):
+#             batch_data.to_csv(output, header =True, index=None, sep='\t')
+#         else: # else it exists so append without writing the header
+#             batch_data.to_csv(output, mode = 'a',header=False, index=None, sep='\t')    
+    
+#     #remove batch files and directory if debugging is turned off
+#     if not debug:
+#         print("deleting " + file_locs)
+#         str_rm = "rm -rf " + file_locs
+#         os.system(str_rm)
 
 def annotate_variants(input_lines, proc_num, directory):
     
@@ -142,47 +185,3 @@ def main():
 
 if __name__ == '__main__':
 	main()	
-
-"""
-    # keep_columns = ['query', 'cadd.encode.h3k4me1', 'dbnsfp.fathmm-mkl.coding_rankscore', 
-                    # 'dbnsfp.mutationassessor.rankscore', 'cadd.encode.h3k27ac',  'dbnsfp.eigen-pc.raw_coding',
-                    # 'cadd.phast_cons.primate', 'dbnsfp.genocanyon.score', 'cadd.encode.exp']
-
-    if os.path.isfile(output):
-        print("deleting existing %s file" % output)
-        str_rm = "rm -f "+output
-        os.system(str_rm)
-
-    cols = set()
-    batch_names = []
-    for filename in files:
-        batch_input = os.path.join(file_locs, filename)
-        batch_names.append(batch_input)
-
-        batch_data = pd.read_csv(batch_input, sep='\t', low_memory = False)
-
-        cols.update(batch_data.columns.tolist())
-
-
-    for batch in batch_names:
-
-        batch_data = pd.read_csv(batch, sep='\t', low_memory = False)
-
-        diff = cols - set(batch_data.columns.tolist())
-
-        for column in diff:
-            batch_data[column] = np.NaN
-            # print("WARNING : myvariant.info batch file "+batch_input+" does not contain the column "+column)
-
-        # for column in keep_columns:
-        #     if(column not in batch_data.columns.tolist()):
-        #         batch_data[column] = np.NaN
-        #         print("WARNING : myvariant.info batch file "+batch_input+" does not contain the column "+column)
-        # batch_data = batch_data[keep_columns]
-
-
-        if not os.path.isfile(output):
-            batch_data.to_csv(output, header =True, index=None, sep='\t')
-        else: # else it exists so append without writing the header
-            batch_data.to_csv(output, mode = 'a',header=False, index=None, sep='\t')    
-"""
