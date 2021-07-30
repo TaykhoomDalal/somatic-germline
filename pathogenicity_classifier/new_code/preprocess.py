@@ -3,7 +3,6 @@ import numpy as np
 import os
 import sys
 import argparse
-import sys
 
 ONCOKB_API_TOKEN = "a2c2ea05-c8c4-4dce-ad5a-0be1cc99b24d"
 
@@ -478,7 +477,7 @@ def downstream_annotations(cohort_maf_uniq, oncogenes, tumor_suppressors):
                                                     1, 0)
 
     print("The shape of %s is: %s" % (annotated_maf, str(cohort_maf_uniq.shape)))
-    cohort_maf_uniq.to_csv(annotated_maf, sep = '\t', index = None)
+    cohort_maf_uniq.to_csv(annotated_maf, sep = '\t', index = None, compression='infer')
 
 # def main():
 #     # parse arguments from command line and then initialize necessary directories
