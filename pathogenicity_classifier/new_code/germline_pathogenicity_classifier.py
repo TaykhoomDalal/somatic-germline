@@ -8,17 +8,30 @@ from sklearn.metrics import make_scorer, accuracy_score, precision_score, recall
 import argparse
 from sklearn.model_selection import RandomizedSearchCV, GridSearchCV
 import shap
+from lime import lime_tabular
+from lime.lime_tabular import LimeTabularExplainer
+from lime import submodular_pick
 import matplotlib.pyplot as plt
 import xgboost as xgb
 from collections import Counter
+import matplotlib.style as style
+import matplotlib
+# from extract_feature_effect_per_prediction import create_prediction_factors_df
+from tcxp import rf_explain
 
 def remove_muts(df, types):
+    
     if 'Missense' in types:
         df = df[~df.Variant_Classification.str.startswith('Missense_Mutation')]
+        df.drop('Consequence_missense_variant', axis = 1, inplace = True, errors='ignore') 
     if 'Splice' in types:
         df = df[~df.Variant_Classification.str.startswith('Splice')]
+        df.drop('Consequence_splice_acceptor_variant', axis = 1, inplace = True, errors='ignore')   
+        df.drop('Consequence_splice_donor_variant', axis = 1, inplace = True, errors='ignore') 
+        df.drop('Consequence_splice_region_variant', axis = 1, inplace = True, errors='ignore') 
     if 'Truncating' in types:
         df = df[~df.Variant_Classification.str.startswith('Frame')]
+        df.drop('Consequence_frameshift_variant', axis = 1, inplace = True, errors='ignore') 
         df = df[~df.Variant_Classification.str.startswith('Non')] # Non stop and Nonsense
         df = df[~df.Variant_Classification.str.startswith('Translation_Start_Site')]
     if 'Misc' in types:
@@ -28,6 +41,7 @@ def remove_muts(df, types):
         df = df[~df.Variant_Classification.str.startswith('Intron')]
         df = df[~df.Variant_Classification.str.startswith('IGR')]
         df = df[~df.Variant_Classification.str.startswith('RNA')]
+        df.drop('Consequence_stop_gained', axis = 1, inplace = True, errors='ignore') 
     if 'In_Frame' in types:
         df = df[~df.Variant_Classification.str.startswith('In_Frame')]
     if 'Silent' in types:
@@ -141,13 +155,10 @@ def main():
     gene_function_map_input = os.path.join(annotation_path, "gene_function_other_genes.txt")
     
     if training_data_file == None:
-        training_data_file = os.path.join(scripts_dir, "input_files/classifier_training_data_V2.txt.gz") 
+        training_data_file = os.path.join(scripts_dir, "input_files/classifier_training_data_V2.maf.gz") 
 
     # read in the training data, print its shape, and get the training labels
-    compr = None
-    if training_data_file.endswith('.gz'):
-        compr = 'gzip'
-    X = pd.read_csv(training_data_file, sep="\t", compression = compr, low_memory = False)
+    X = pd.read_csv(training_data_file, sep="\t", compression = 'infer', low_memory = False)
     print("The shape of the training data (%s) on initial load is %s\n"%(training_data_file, str(X.shape)))
 
     # remove all mutations specified by type for the training data
@@ -157,12 +168,8 @@ def main():
     # deal with differing names for training data labels
     if 'pathogenic' in X.columns.tolist():
         y_train = X['pathogenic']
-    else:
+    elif 'signed_out' in X.columns.tolist():
         y_train = X['signed_out']
-
-    # X.to_csv('temp.tsv', sep = '\t', index = False)
-    # print("The shape of the training data (%s) is %s\n"%('temp.tsv', str(X.shape)))
-    # exit()
 
     # read in the test data and print its shape
     X_test = pd.read_csv(classifier_input, sep = '\t', low_memory = False)
@@ -183,7 +190,7 @@ def main():
     # ######################################################
     # keep_columns = X_test.columns.tolist()
     # keep_columns[:] = [feature for feature in keep_columns if feature in X]
-    # print(len(keep_columns))
+    # print(str(len(keep_columns)) + "\n")
     # #######################################################
 
     # get list of features to retain from annotated file
@@ -193,33 +200,18 @@ def main():
     # if a feature is not in our testing data, we don't want to retain it (the : modifies list in place)
     keep_columns[:] = [feature for feature in keep_columns if feature in X_test]
     keep_columns[:] = [feature for feature in keep_columns if feature in X]
-    
-    # final_columns = [
-    #                 'ExAC2_AF', 'clinvar_pathogenic', 'Consequence_frameshift_variant', 'ExAC2_AF_ASJ',  
-    #                 'Consequence_splice_region_variant', 'Consequence_missense_variant', 'Consequence_stop_gained', 
-    #                 'Consequence_splice_acceptor_variant', 'Consequence_splice_donor_variant' , 'GOLD_STARS', 
-    #                 'Variant_Classification_Nonsense_Mutation', 'clinvar_benign', 'clinvar_uncertain' , 'dbnsfp.fathmm.mkl.coding_rankscore', 
-    #                 'dbnsfp.mutationassessor.rankscore',  'dbnsfp.eigen.pc.raw','cadd.phast_cons.primate', 'dbnsfp.genocanyon.score',
-    #                 'Variant_Classification_Intron', 'Variant_Classification_Splice_Region','Variant_Classification_Splice_Site',
-    #                 'MinorAlleleFreq' ,'oncogenic', 'is-a-hotspot', 'ada_score', 'last_exon_terminal', 'OMIM', 'cell cycle checkpoint',
-    #                 'HR', 'DSB', 'DNA replication', 'DSBR', 'MMR', 'DNA repair', 'cell cycle', 'response to DNA damage stimulus', 'BER', 
-    #                 'NER', 'OncoKB Oncogene', 'OncoKB TSG','mutation_mechanism_consistency', 'ratio_ASJ', 'splice_dist', 
-    #                 #'Variant_Classification_Nonstop_Mutation', 'Variant_Classification_RNA',
-    #                 ]
-
-    # if 'Consequence_frameshift_variant' not in X_test:
-    #     remove_columns =    [   'Consequence_frameshift_variant', 'Consequence_stop_gained', 
-    #                             'Consequence_splice_acceptor_variant', 'Consequence_splice_donor_variant'
-    #                         ]
-    #     final_columns = [x for x in final_columns if x not in remove_columns ]
 
     # keep only the subset of features deemed useful
     X_train = X[keep_columns]
 
-    # convert categorical variables into binary features (dummy encoding)
-    X_train = pd.get_dummies(X_train)
-    # X_train = X_train.select_dtypes(exclude='object')
+    # X_train = X_train.loc[:, X_train.isnull().sum() < 0.10*X_train.shape[0]]
 
+    # convert categorical variables into binary features (dummy encoding)
+    # cats = X_train.select_dtypes(exclude=np.number).columns.tolist()
+    # X_train = X_train.drop(columns = X_train[cats].loc[:,X_train[cats].apply(pd.Series.nunique) >= 3].columns.tolist())
+    # final_columns = X_train.columns.tolist()
+    X_train = pd.get_dummies(X_train)
+    
     # change NaN values to 0s
     X_train = X_train.fillna(value=0)
 
@@ -260,31 +252,42 @@ def main():
     clf.fit(X_train, y_train)
     model_name = type(clf).__name__
 
+    # cols = X_train.columns
+    # nums = X_train._get_numeric_data().columns
+    # cats = list(set(cols) - set(nums))
+
+    # nums_index = X_train.columns.get_indexer(nums)
+    # cats_index = X_train.columns.get_indexer(cats)
+
+    # explainer = lime_tabular.LimeTabularExplainer(X_train.values, mode='classification',training_labels=y_train,feature_names=X_train.columns.tolist(), discretize_continuous=False)
+    # l=[]
+    # for n in range(0,1000):
+    #     exp = explainer.explain_instance(X_train.values[n], clf.predict_proba, num_features=32)
+    #     a=dict(exp.as_list(exp.available_labels()[0]))
+    #     a['prediction'] = y_train.values[n]
+    #     l.append(a)
+    # W_pick = pd.DataFrame(l).fillna(0)
+
+    
+    # explainer = LimeTabularExplainer(X_train.values,class_names = [1,0], feature_names = X_train.columns, mode = 'classification', discretize_continuous=False)
+    # exp=explainer.explain_instance(X_train.to_numpy()[0],clf.predict_proba,top_labels=32)
+    # print(exp.available_labels())
+    # sp_obj = submodular_pick.SubmodularPick(data=X_train.to_numpy(),explainer=explainer,num_exps_desired=X_train.shape[0], sample_size=X_train.shape[0], predict_fn=clf.predict_proba, num_features=32)
+    # W_pick=pd.DataFrame([dict(this.as_list(this.available_labels()[0])) for this in sp_obj.sp_explanations]).fillna(0)
+    # W_pick['prediction'] = [this.available_labels()[0] for this in sp_obj.sp_explanations]
+    # W_pick.to_csv('/home/dalalt1/PathoClass/somatic-germline/pathogenicity_classifier/output_files/predictions.maf', sep = '\t', index = None)
+    
+
+    # exp.save_to_file('/home/dalalt1/PathoClass/somatic-germline/pathogenicity_classifier/fig.html')
+
+    # exit()
+
     # experimenting with shapely values
     # explainer = shap.KernelExplainer(clf.predict_proba, shap.kmeans(X_train, 5))
     # shap_values = explainer.shap_values(X_train)
     # f = plt.figure()
     # shap.summary_plot(shap_values, X_train)
     # f.savefig(os.getcwd() + "/summary_plot1.png", bbox_inches='tight', dpi=600)
-
-    # # Use StratifiedKFold Cross Validation for an accurate representation of the model performance
-    # k_fold = StratifiedKFold(n_splits=10, random_state=42, shuffle = True)
-
-    # scoring = { 'accuracy' : make_scorer(accuracy_score), 
-    #             'precision' : make_scorer(precision_score),
-    #             'recall' : make_scorer(recall_score), 
-    #             'f1_score' : make_scorer(f1_score)}
-
-    # results_kfold = cross_validate(clf, X_train,y_train, cv = k_fold, scoring = scoring, return_train_score = True)
-    # print('CV with sample distributions held across folds.')
-    # print("StratifiedKFold Train Mean Accuracy Across 10 Folds: %.5f (+/- %0.5f)" % (np.mean(results_kfold["train_accuracy"]), 2 * np.std(results_kfold["train_accuracy"])))
-    # print("StratifiedKFold Test Mean Accuracy Across 10 Folds: %.5f (+/- %0.5f)" % (np.mean(results_kfold["test_accuracy"]), 2 * np.std(results_kfold["test_accuracy"])))
-    # print("StratifiedKFold Test Mean Precision Across 10 Folds: %.5f (+/- %0.5f)" % (np.mean(results_kfold["test_precision"]), 2 * np.std(results_kfold["test_precision"])))
-    # print("StratifiedKFold Test Mean Recall Across 10 Folds: %.5f (+/- %0.5f)" % (np.mean(results_kfold["test_recall"]), 2 * np.std(results_kfold["test_recall"])))
-    # print("StratifiedKFold Test Mean F1 Score Across 10 Folds: %.5f (+/- %0.5f)\n" % (np.mean(results_kfold["test_f1_score"]), 2 * np.std(results_kfold["test_f1_score"])))
-
-
-    # exit()
 
     # Use StratifiedKFold Cross Validation for an accurate representation of the model performance
     k_fold = StratifiedKFold(n_splits=10, random_state=42, shuffle = True)
@@ -302,22 +305,17 @@ def main():
     print("StratifiedKFold Test Mean Recall Across 10 Folds: %.5f (+/- %0.5f)" % (np.mean(results_kfold["test_recall"]), 2 * np.std(results_kfold["test_recall"])))
     print("StratifiedKFold Test Mean F1 Score Across 10 Folds: %.5f (+/- %0.5f)\n" % (np.mean(results_kfold["test_f1_score"]), 2 * np.std(results_kfold["test_f1_score"])))
 
-    # # Use the old KFold CV method, which can lead to imbalanced folds
     # k_fold = KFold(n_splits=10)
-    # print('Old CV method, with no distribution assurances among folds.')
+
+    # cv_score = cross_val_score(clf, X_train, y_train, cv=k_fold, scoring='accuracy')
+    # print("\nAccuracy: %0.4f (+/- %0.4f)" % (cv_score.mean(), cv_score.std() * 2))
+
     # cv_score = cross_val_score(clf, X_train, y_train, cv=k_fold, scoring='precision')
-    # print("KFOLD Precision: %0.5f (+/- %0.5f)" % (cv_score.mean(), cv_score.std() * 2))
-    
+    # print("\nPrecision: %0.4f (+/- %0.4f)" % (cv_score.mean(), cv_score.std() * 2))
+
     # cv_score = cross_val_score(clf, X_train, y_train, cv=k_fold, scoring='recall')
-    # print("KFOLD Recall: %0.5f (+/- %0.5f)\n" % (cv_score.mean(), cv_score.std() * 2))
-    # coeffs = np.array(clf.feature_importances_)
-
-    # Use the stratified shuffle split CV method
-    train_error, train_std, test_error,test_std, precision,precision_std, recall, recall_std, f1, f1_std = error(clf, X_train.to_numpy(), y_train.to_numpy())
-    print(('%s Metrics:\n\ttraining accuracy: %.5f (+/- %0.5f)\n\ttesting accuracy: '
-          '%.5f (+/- %0.5f)\n\tprecision: %.5f (+/- %0.5f)\n\trecall: %.5f (+/- %0.5f)\n\tf1_score: %.5f (+/- %0.5f)') 
-          % (model_name, 1-train_error, 2* train_std, 1-test_error, 2 * test_std, precision, 2 * precision_std, recall, 2 * recall_std, f1, 2 * f1_std))
-
+    # print("\nRecall: %0.4f (+/- %0.4f)" % (cv_score.mean(), cv_score.std() * 2))
+    # exit()
 
     #get feature importances
     coeffs = np.array(clf.feature_importances_)
@@ -349,29 +347,82 @@ def main():
         print("%d. %-40s %20.5f" % (num, w[0],w[1]))
         num+=1
     print('')
+    
+    # ############################################################################
+    f = [tup[0] for tup in list_keepcols]
+    imp = [tup[1] for tup in list_keepcols]
+    indices = np.argsort(imp)
 
-    df_all_subset = X_test[keep_columns]
+    importances = []
+    for i in indices:
+        importances.append(imp[i])
 
-    df_all_subset = pd.get_dummies(df_all_subset)
-    df_all_subset = df_all_subset.fillna(value=0)
+    style.use('seaborn-poster')
+    matplotlib.rcParams['font.family'] = "sans-serif"
+    fig, ax = plt.subplots()
+
+    plt.title('Feature Importances')
+    ax.barh(range(len(indices)), importances, color='tab:blue', align='center')
+    plt.yticks(range(len(indices)), [f[i] for i in indices])
+
+    for i, v in enumerate(importances):
+        plt.text(v - 0.011, i, " "+str(round(v, 3)), color='white', verticalalignment="center",horizontalalignment="left")
+
+    plt.xlabel('Relative Importance')
+    fig.savefig('feature_importances.jpg', dpi = 500, bbox_inches = 'tight')
+
+    # ############################################################################
+
+    # keep only the subset of features deemed useful
+    X_test_trimmed = X_test[keep_columns]
+
+    # convert categorical variables into binary features (dummy encoding)
+    X_test_trimmed = pd.get_dummies(X_test_trimmed)
+
+    # change NaN values to 0s
+    X_test_trimmed = X_test_trimmed.fillna(value=0)
+
+    # make sure that the data we pass to the classifier has the same number of columns as the classifier expects
     try:
-        df_all_subset = df_all_subset[final_columns]
+        X_test_trimmed = X_test_trimmed[final_columns]
     except KeyError:
         for colname in final_columns:
-            if(colname not in df_all_subset.columns.tolist()):
-                df_all_subset[colname] = 0
-        df_all_subset = df_all_subset[final_columns]
+            if(colname not in X_test_trimmed.columns.tolist()):
+                X_test_trimmed[colname] = 0
+        X_test_trimmed = X_test_trimmed[final_columns]
 
 
-    df_predictions_prob = clf.predict_proba(df_all_subset)
+    df_predictions_prob = clf.predict_proba(X_test_trimmed)
     df_predictions_prob = get_df_prob(df_predictions_prob)
-    df_predictions = clf.predict(df_all_subset)
+    df_predictions = clf.predict(X_test_trimmed)
+    # explainer = lime_tabular.LimeTabularExplainer(X_test_trimmed.values, mode='classification',feature_names=X_test_trimmed.columns.tolist(), discretize_continuous=False, kernel_width=3)
+    # l=[]
+    # for n in range(0,X_test_trimmed.shape[0]):
+    #     exp = explainer.explain_instance(X_test_trimmed.values[n], clf.predict_proba, num_features=32)
+    #     features = exp.as_list(exp.available_labels()[0])
+    #     a=dict([(feature[0] + '_weight', feature[1]) for feature in features])
+    #     l.append(a)
+    # W_pick = pd.DataFrame(l).fillna(0)
+
+    # explainer = shap.KernelExplainer(clf.predict_proba, shap.kmeans(X_train, 100))
+    # shap_values = explainer.shap_values(X_test_trimmed[:5])
+    # print(type(shap_values))
+    # exit(0)
+    # W_pick = create_prediction_factors_df(shap_values, X_test_trimmed)
+    # print(W_pick.head())
+    # print(W_pick.shape)
+    # exit()
+
+    tc_exps, p0  = rf_explain(clf, X_test_trimmed)
+    W_pick = pd.DataFrame(tc_exps, columns = [x + '_weight' for x in X_test_trimmed.columns.tolist()])
+    
     e = pd.Series(df_predictions)
     f = pd.Series(df_predictions_prob['prediction_prob'])
     X_test['prediction'] = e.values
     X_test['prediction_probability'] = f.values
     
     oncogenes, tumor_suppressors, gene_level_annotation = get_gene_level_annotations()
+    
     #identify truncating mutations in oncogene
     X_test['truncating_oncogene'] = np.where((X_test['Hugo_Symbol'].isin(oncogenes))&
                                                     (~(X_test['Hugo_Symbol'].isin(tumor_suppressors))) &
@@ -382,12 +433,33 @@ def main():
     X_test['prediction'] = np.where(X_test['truncating_oncogene']==1,
                                             0, X_test['prediction'])
 
-    final_columns_to_report = ['Chromosome', 'Start_Position', 'End_Position', 'Reference_Allele', 'Alternate_Allele', 'Variant_Type', 'Variant_Classification', 'Hugo_Symbol', 'HGVSc', 'Protein_position', 'HGVSp_Short', 'Normal_Sample', 'n_alt_count', 'n_depth', 'ExAC2_AF', 'ExAC2_AF_ASJ', 'Consequence', 'CLINICAL_SIGNIFICANCE', 'GOLD_STARS', 'Exon_Number', 'oncogenic', 'last_exon_terminal', 'prediction', 'prediction_probability', 'truncating_oncogene',]
+    # f_cols = ['Chromosome', 'Start_Position', 'End_Position', 'Reference_Allele', 'Alternate_Allele', 'Variant_Type', 'Variant_Classification', 'Hugo_Symbol', 'HGVSc', 'Protein_position', 'HGVSp_Short', 'Normal_Sample', 'n_alt_count', 'n_depth', 'ExAC2_AF', 'ExAC2_AF_ASJ', 'Consequence', 'CLINICAL_SIGNIFICANCE', 'GOLD_STARS', 'Exon_Number', 'oncogenic', 'last_exon_terminal', 'truncating_oncogene','prediction_probability','prediction']
 
-    if 'exon_number' not in X_test and 'Consequence' not in X_test:
-        final_columns_to_report = ['Chromosome', 'Start_Position', 'End_Position', 'Reference_Allele', 'Alternate_Allele', 'Variant_Type', 'Variant_Classification', 'Hugo_Symbol', 'HGVSc', 'Protein_position', 'HGVSp_Short', 'Normal_Sample', 'n_alt_count', 'n_depth', 'ExAC2_AF', 'ExAC2_AF_ASJ', 'CLINICAL_SIGNIFICANCE', 'GOLD_STARS', 'oncogenic', 'prediction', 'prediction_probability', 'truncating_oncogene',]
+    # final_columns_to_report = [column for column in f_cols if column in X_test]
 
-    X_test[final_columns_to_report].to_csv(classifier_output, sep = '\t', index = None)
+    # X_test[final_columns_to_report].to_csv(classifier_output, sep = '\t', index = None)
+    # # final_columns_to_report = ['Chromosome', 'Start_Position', 'End_Position', 'Reference_Allele', 'Alternate_Allele', 'Variant_Type', 'Variant_Classification', 'Hugo_Symbol', 'HGVSc', 'Protein_position', 'HGVSp_Short', 'Normal_Sample', 'n_alt_count', 'n_depth', 'ExAC2_AF', 'ExAC2_AF_ASJ', 'Consequence', 'CLINICAL_SIGNIFICANCE', 'GOLD_STARS', 'Exon_Number', 'oncogenic', 'last_exon_terminal', 'prediction', 'prediction_probability', 'truncating_oncogene',]
+    # # .extend(W_pick.columns.tolist())
+
+    # # if 'exon_number' not in X_test and 'Consequence' not in X_test:
+    # #     final_columns_to_report = ['Chromosome', 'Start_Position', 'End_Position', 'Reference_Allele', 'Alternate_Allele', 'Variant_Type', 'Variant_Classification', 'Hugo_Symbol', 'HGVSc', 'Protein_position', 'HGVSp_Short', 'Normal_Sample', 'n_alt_count', 'n_depth', 'ExAC2_AF', 'ExAC2_AF_ASJ', 'CLINICAL_SIGNIFICANCE', 'GOLD_STARS', 'oncogenic', 'prediction', 'prediction_probability', 'truncating_oncogene',]
+    # #     final_columns_to_report.extend(W_pick.columns.tolist())
+    engineered_cols = sorted(X_test_trimmed.columns.tolist() + W_pick.columns.tolist())
+    orig_cols_subset = ['Chromosome', 'Start_Position', 'End_Position', 'Reference_Allele', 'Alternate_Allele', 'Variant_Type', 'Variant_Classification', 'Hugo_Symbol', 'HGVSc', 'Protein_position', 'HGVSp_Short', 'Normal_Sample', 'n_alt_count', 'n_depth', 'CLINICAL_SIGNIFICANCE']
+    added_cols = ['truncating_oncogene', 'prediction_probability', 'prediction']
+    
+    total_columns = orig_cols_subset + engineered_cols + added_cols
+
+    # # # print(X_test[orig_cols_subset + added_cols].shape)
+    # # # print(X_test_trimmed.shape)
+    # # # print(W_pick.shape)
+
+    X_test_extended = pd.concat([X_test[orig_cols_subset + added_cols], X_test_trimmed],axis = 1)
+
+    X_test_extended.index = W_pick.index
+    X_test_extended_preds = pd.concat([X_test_extended, W_pick], axis = 1)
+    
+    X_test_extended_preds[total_columns].to_csv(classifier_output, sep = '\t', index = None)
 
 if __name__ == '__main__':
   main()  
