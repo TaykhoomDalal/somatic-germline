@@ -365,14 +365,16 @@ def get_gene_level_annotations():
 	return oncogenes, tumor_suppressors, gene_level_annotation
 
 def downstream_annotations(cohort_maf_uniq, oncogenes, tumor_suppressors):
-    try:
-        cohort_maf_uniq['ExAC2_AF_ASJ'] = np.where(cohort_maf_uniq['ExAC2_AF_ASJ']=='.',0, 
-                                                    cohort_maf_uniq['ExAC2_AF_ASJ'])
-    except TypeError:
-        pass
+    if 'ExAC2_AF_ASJ' in cohort_maf_uniq:
+        try:
+            cohort_maf_uniq['ExAC2_AF_ASJ'] = np.where(cohort_maf_uniq['ExAC2_AF_ASJ']=='.',0, 
+                                                        cohort_maf_uniq['ExAC2_AF_ASJ'])
+        except TypeError:
+            pass
 
-    cohort_maf_uniq['ExAC2_AF_ASJ'] = cohort_maf_uniq['ExAC2_AF_ASJ'].fillna(0)
-    cohort_maf_uniq['ExAC2_AF_ASJ'] = cohort_maf_uniq['ExAC2_AF_ASJ'].astype(float)
+        cohort_maf_uniq['ExAC2_AF_ASJ'] = cohort_maf_uniq['ExAC2_AF_ASJ'].fillna(0)
+        cohort_maf_uniq['ExAC2_AF_ASJ'] = cohort_maf_uniq['ExAC2_AF_ASJ'].astype(float)
+
     cohort_maf_uniq['ExAC2_AF'] = np.where(pd.isnull(cohort_maf_uniq['ExAC2_AF']), 0, cohort_maf_uniq['ExAC2_AF'])
     cohort_maf_uniq['mutation_mechanism_consistency'] = 0
 
@@ -420,9 +422,14 @@ def downstream_annotations(cohort_maf_uniq, oncogenes, tumor_suppressors):
     cohort_maf_uniq['splice_dist'] = cohort_maf_uniq['splice_dist'].astype(int)
 
     cohort_maf_uniq['mutation'] = cohort_maf_uniq['Hugo_Symbol'] + ":" + cohort_maf_uniq['HGVSc']
-    cohort_maf_uniq['ratio_ASJ'] = cohort_maf_uniq['ExAC2_AF_ASJ']/cohort_maf_uniq['ExAC2_AF'].astype(float)
-    cohort_maf_uniq['ratio_ASJ'] = cohort_maf_uniq['ratio_ASJ'].astype(float)
-    cohort_maf_uniq['ratio_ASJ'] = cohort_maf_uniq['ratio_ASJ'].fillna(0.0)
+
+
+    if 'ExAC2_AF_ASJ' in cohort_maf_uniq:
+        cohort_maf_uniq['ratio_ASJ'] = cohort_maf_uniq['ExAC2_AF_ASJ']/cohort_maf_uniq['ExAC2_AF'].astype(float)
+        cohort_maf_uniq['ratio_ASJ'] = cohort_maf_uniq['ratio_ASJ'].astype(float)
+        cohort_maf_uniq['ratio_ASJ'] = cohort_maf_uniq['ratio_ASJ'].fillna(0.0)
+
+
     cohort_maf_uniq['ExAC2_AF'] = cohort_maf_uniq['ExAC2_AF'].fillna(0.0)
 
     pathogenic_terms = ['Pathogenic', 'pathogenic', ]
@@ -537,6 +544,15 @@ def main():
 
     # load the input data into dataframe
     input_maf_data = pd.read_csv(input_maf, sep = '\t', low_memory = False)
+    if 'Tumor_Seq_Allele2' in input_maf_data:
+        input_maf_data.rename(columns={'Tumor_Seq_Allele2':'Alternate_Allele'}, inplace=True)
+    if 'ExAC2_AF' not in input_maf_data:
+        input_maf_data.rename(columns={'ExAC_AF':'ExAC2_AF'}, inplace=True)
+    if 'CLINICAL_SIGNIFICANCE' not in input_maf_data:
+        input_maf_data.rename(columns={'CLIN_SIG':'CLINICAL_SIGNIFICANCE'}, inplace=True)
+
+    # print(input_maf_data.columns.tolist())
+    # exit()
     debug_print("\nThe shape of the input file " + "(" + input_maf + ") is " + str(input_maf_data.shape), debug)
 
     # annotate using MyVariantInfo, OncoKB, dbscSNV

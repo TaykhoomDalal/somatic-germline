@@ -149,6 +149,10 @@ def main():
 
     # read the input file, retain only the necessary info for annotation, and then write the file out
     input_maf_data = pd.read_csv(input_maf, sep = '\t', low_memory = False)
+
+    if 'Tumor_Seq_Allele2' in input_maf_data:
+        input_maf_data.rename(columns={'Tumor_Seq_Allele2':'Alternate_Allele'}, inplace=True)
+
     input_maf_data = input_maf_data.loc[:, ['Chromosome', 'Start_Position', 'Reference_Allele', 'Alternate_Allele', 'End_Position', 'Variant_Type']]
     input_maf_data.drop_duplicates(inplace=True)
     input_maf_data.to_csv(new_file_name, sep = '\t', index = None)
